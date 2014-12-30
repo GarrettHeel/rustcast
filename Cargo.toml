@@ -1,0 +1,14 @@
+[package]
+
+name = "rustcast"
+version = "0.0.1"
+authors = ["rust"]
+
+[dependencies.openssl]
+git = "https://github.com/sfackler/rust-openssl"
+features = ["tlsv1_2"]
+
+
+[[testing]]
+name = "testing"
+path = "main.rs"
