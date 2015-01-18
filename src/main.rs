@@ -1,8 +1,9 @@
-extern crate openssl;
+//extern crate openssl;
 extern crate libc;
 
 use std::io::TcpStream;
 use std::ptr;
+use std::ffi::CString;
 
 //use openssl::ssl::{SslStream, SslContext, SslMethod};
 //use std::io::net::udp::UdpSocket;
@@ -12,8 +13,18 @@ use libc::{c_void, c_int, c_char};
 
 struct AvahiSimplePoll;
 struct AvahiPoll;
-
 struct DBusConnection;
+struct AvahiEntryGroup;
+struct AvahiDomainBrowser;
+struct AvahiServiceBrowser;
+struct AvahiServiceTypeBrowser;
+struct AvahiServiceResolver;
+struct AvahiHostNameResolver;
+struct AvahiAddressResolver;
+struct AvahiRecordBrowser;
+struct AvahiAddress;
+struct AvahiStringList;
+
 
 type AvahiClientCallback = extern fn(AvahiClient, AvahiClientState, *const c_void);
 
@@ -30,15 +41,17 @@ struct AvahiClient {
   domain_name: *const c_char,
   local_service_cookie: u32,
   local_service_cookie_valid: u16,
-  callback: AvahiClientCallback,
-  userdata: *const c_void
+  callback: extern "C" fn(*const AvahiClient, AvahiClientState, *const c_void),
+  userdata: *const c_void,
+  groups: *const AvahiEntryGroup,
+  domain_browsers: *const AvahiDomainBrowser,
+  service_browsers: *const AvahiServiceBrowser,
+  service_type_browsers: *const AvahiServiceTypeBrowser,
+  service_resolvers: *const AvahiServiceResolver,
+  hsot_name_resolvers: *const AvahiHostNameResolver,
+  address_resolvers: *const AvahiAddressResolver,
+  record_browsers: *const AvahiRecordBrowser
 }
-
-struct AvahiServiceBrowser;
-struct AvahiDomainBrowser;
-struct AvahiServiceResolver;
-struct AvahiAddress;
-struct AvahiStringList;
 
 #[repr(C)]
 #[deriving(Show)]
@@ -224,7 +237,9 @@ fn main() {
     
     // This is weird.. figure it out
     let client_ptr: *mut c_void = &mut client as *mut _ as *mut c_void;
-    let mut sb = avahi_service_browser_new(client, -1, -1, "_googlecast._tcp".to_c_str().as_ptr(), ptr::null_mut(), AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, browse_callback, client_ptr);
+
+    let _type = CString::from_slice("_googlecast._tcp".as_bytes()).as_ptr();
+    let mut sb = avahi_service_browser_new(client, -1, -1, _type, ptr::null_mut(), AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, browse_callback, client_ptr);
 
     avahi_simple_poll_loop(simple_poll);
 
