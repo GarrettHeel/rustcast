@@ -13,231 +13,75 @@ use std::str;
 //use std::io::net::udp::UdpSocket;
 //use std::io::net::ip::{Ipv4Addr, SocketAddr};
 
-use libc::{c_void, c_int, c_char};
+use libc::{c_void, c_int, c_char, size_t};
 
-#[repr(C)]
-struct AvahiSimplePoll;
-
-#[repr(C)]
-struct AvahiPoll;
-
-#[repr(C)]
-struct DBusConnection;
-
-#[repr(C)]
-struct AvahiEntryGroup;
-
-#[repr(C)]
-struct AvahiDomainBrowser;
-
-#[repr(C)]
-struct AvahiServiceBrowser;
-
-#[repr(C)]
-struct AvahiServiceTypeBrowser;
-
-#[repr(C)]
-struct AvahiServiceResolver;
-
-#[repr(C)]
-struct AvahiHostNameResolver;
-
-#[repr(C)]
-struct AvahiAddressResolver;
-
-#[repr(C)]
-struct AvahiRecordBrowser;
-
-#[repr(C)]
-struct AvahiAddress;
-
-#[repr(C)]
-struct AvahiStringList;
+mod avahi;
 
 
-type AvahiClientCallback = extern fn(AvahiClient, AvahiClientState, *const c_void);
 
-#[repr(C)]
-struct AvahiClient {
-  poll_api: *const AvahiPoll,
-  bus: *const DBusConnection,
-  error: u16,
-  state: AvahiClientState,
-  flags: AvahiClientFlags,
-  version_string: *const c_char,
-  host_name: *const c_char,
-  host_name_fqdn: *const c_char,
-  domain_name: *const c_char,
-  local_service_cookie: u32,
-  local_service_cookie_valid: u16,
-  callback: extern fn(*const AvahiClient, AvahiClientState, *const c_void),
-  userdata: *const c_void,
-  groups: *const AvahiEntryGroup,
-  domain_browsers: *const AvahiDomainBrowser,
-  service_browsers: *const AvahiServiceBrowser,
-  service_type_browsers: *const AvahiServiceTypeBrowser,
-  service_resolvers: *const AvahiServiceResolver,
-  hsot_name_resolvers: *const AvahiHostNameResolver,
-  address_resolvers: *const AvahiAddressResolver,
-  record_browsers: *const AvahiRecordBrowser
-}
 
-#[repr(C)]
-#[deriving(Show)]
-enum AvahiClientFlags {
-  AVAHI_CLIENT_IGNORE_USER_CONFIG,
-  AVAHI_CLIENT_NO_FAIL
-}
-
-#[repr(C)]
-#[deriving(Show)]
-enum AvahiClientState {
-  AVAHI_CLIENT_S_REGISTERING,
-  AVAHI_CLIENT_S_RUNNING,
-  AVAHI_CLIENT_S_COLLISION,
-  AVAHI_CLIENT_FAILURE,
-  AVAHI_CLIENT_CONNECTING
-}
-
-#[repr(C)]
-enum AvahiLookupFlags {
-  AVAHI_LOOKUP_NO_TXT,
-  AVAHI_LOOKUP_NO_ADDRESS
-}
-
-#[repr(C)]
-enum AvahiLookupResultFlags {
-  AVAHI_LOOKUP_RESULT_CACHED,
-  AVAHI_LOOKUP_RESULT_WIDE_AREA,
-  AVAHI_LOOKUP_RESULT_MULTICAST,
-  AVAHI_LOOKUP_RESULT_LOCAL,
-  AVAHI_LOOKUP_RESULT_OUR_OWN,
-  AVAHI_LOOKUP_RESULT_STATIC
-}
-
-#[repr(C)]
-#[derive(Show)]
-enum AvahiBrowserEvent {
-  AVAHI_BROWSER_NEW,
-  AVAHI_BROWSER_REMOVE,
-  AVAHI_BROWSER_CACHE_EXHAUSTED,
-  AVAHI_BROWSER_ALL_FOR_NOW,
-  AVAHI_BROWSER_FAILURE
-}
-
-#[repr(C)]
-enum AvahiProtocol {
-  AVAHI_PROTO_INET = 0,
-  AVAHI_PROTO_INET6 = 1,
-  AVAHI_PROTO_UNSPEC = -1
-}
-
-#[repr(C)]
-enum AvahiResolverEvent {
-  AVAHI_RESOLVER_FOUND,
-  AVAHI_RESOLVER_FAILURE
-}
-
-type ServiceBrowserCallback = extern fn(*mut AvahiServiceBrowser, 
-                                        c_int, 
-                                        c_int, 
-                                        AvahiBrowserEvent, 
-                                        *const c_char, 
-                                        *const c_char, 
-                                        *const c_char, 
-                                        AvahiLookupResultFlags, 
-                                        *mut c_void);
-
-type ServiceResolverCallback = extern fn(*mut AvahiServiceResolver, 
-                                         c_int, 
-                                         c_int, 
-                                         AvahiResolverEvent, 
-                                         *const c_char, 
-                                         *const c_char, 
-                                         *const c_char, 
-                                         *const c_char, 
-                                         *const AvahiAddress, 
-                                         u16, 
-                                         *mut AvahiStringList, 
-                                         AvahiLookupResultFlags, 
-                                         *mut c_void);
-
-#[link(name = "avahi-common")]
-#[link(name = "avahi-client")]
-extern { 
-  
-  fn avahi_simple_poll_new() -> *mut AvahiSimplePoll;
-
-  fn avahi_client_new(poll_api: *const AvahiPoll,
-                      flags: AvahiClientFlags,
-                      callback: extern fn(*mut AvahiClient, AvahiClientState, *mut c_void),
-                      userdata: *mut c_void,
-                      error: *mut c_int) -> *mut AvahiClient;
-
-  fn avahi_simple_poll_get(s: *mut AvahiSimplePoll) -> *mut AvahiPoll;
-
-  fn avahi_service_browser_new(client: *mut AvahiClient,
-                               interface: c_int,
-                               protocol: c_int,
-                               le_type: *const c_char,
-                               domain: *const c_char,
-                               flags: AvahiLookupFlags,
-                               callback: ServiceBrowserCallback,
-                               userdata: *mut c_void) -> *mut AvahiServiceBrowser;
-
-  fn avahi_simple_poll_loop(s: *mut AvahiSimplePoll) -> c_int;
-
-  fn avahi_service_browser_free(b: *mut AvahiServiceBrowser) -> c_int; 
-
-  fn avahi_client_free(client: *mut AvahiClient);
-
-  fn avahi_simple_poll_free(s: *mut AvahiSimplePoll);
-
-  fn avahi_service_resolver_new(client: *mut AvahiClient,
-                                interface: c_int,
-                                protocol: c_int,
-                                name: *const c_char,
-                                le_type: *const c_char,
-                                domain: *const c_char,
-                                aprotocol: AvahiProtocol,
-                                flags: AvahiLookupFlags,
-                                callback: ServiceResolverCallback,
-                                userdata: *mut c_void) -> *mut AvahiServiceResolver;
-  
-}
-
-extern fn resolve_callback(r: *mut AvahiServiceResolver,
+extern fn resolve_callback(r: *mut avahi::AvahiServiceResolver,
                            interface: c_int,
                            protocol: c_int,
-                           event: AvahiResolverEvent,
+                           event: avahi::AvahiResolverEvent,
                            name: *const c_char,
                            le_type: *const c_char,
                            domain: *const c_char,
                            host_name: *const c_char,
-                           address: *const AvahiAddress,
+                           address: *const avahi::AvahiAddress,
                            port: u16,
-                           txt: *mut AvahiStringList,
-                           flags: AvahiLookupResultFlags,
+                           txt: *mut avahi::AvahiStringList,
+                           flags: avahi::AvahiLookupResultFlags,
                            userdata: *mut c_void) {
 
-  println!("in resolve callback");
+  match event {
+    avahi::AvahiResolverEvent::AVAHI_RESOLVER_FAILURE => {
+      println!("Failed to resolve");
+    }
+    
+    avahi::AvahiResolverEvent::AVAHI_RESOLVER_FOUND => {
+      unsafe {
+        let name = str::from_utf8(ffi::c_str_to_bytes(&name)).unwrap();
+        let host_name = str::from_utf8(ffi::c_str_to_bytes(&host_name)).unwrap();
+
+        let mut vec: Vec<u8> = Vec::with_capacity(avahi::AVAHI_ADDRESS_STR_MAX as usize);
+        let mut a = std::ffi::CString::from_vec(vec).as_ptr();
+        avahi::avahi_address_snprint(a, avahi::AVAHI_ADDRESS_STR_MAX as u32, address);
+        let address = str::from_utf8(ffi::c_str_to_bytes(&a)).unwrap();
+
+        let txt = avahi::avahi_string_list_to_string(txt);
+        let t1 = ffi::c_str_to_bytes(&txt);
+        avahi::avahi_free(txt as *mut c_void);
+
+        let result = avahi::AvahiResolveResult {
+          name: String::from_str(name),
+          host_name: String::from_str(host_name),
+          address: String::from_str(address),
+          port: port
+        };
+
+        println!("Resolved! {:?}", result);
+
+      }
+      
+    }
+  }
 }
 
 
-
-extern fn browse_callback(b: *mut AvahiServiceBrowser, interface: c_int, protocol: c_int, event: AvahiBrowserEvent, 
-                          name: *const c_char, le_type: *const c_char, domain: *const c_char, flags: AvahiLookupResultFlags, 
+extern fn browse_callback(b: *mut avahi::AvahiServiceBrowser, interface: c_int, protocol: c_int, event: avahi::AvahiBrowserEvent, 
+                          name: *const c_char, le_type: *const c_char, domain: *const c_char, flags: avahi::AvahiLookupResultFlags, 
                           userdata: *mut c_void) {
 
   match event {
-    AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
+    avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
       println!("{:?}", event);
       unsafe {
           
-          let mut client: &mut AvahiClient = unsafe { &mut *(userdata as *mut AvahiClient)};
+          let mut client: &mut avahi::AvahiClient = &mut *(userdata as *mut avahi::AvahiClient);
           
-          avahi_service_resolver_new(client, interface, protocol, name, le_type, domain, 
-                                     AvahiProtocol::AVAHI_PROTO_UNSPEC, AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
+          avahi::avahi_service_resolver_new(client, interface, protocol, name, le_type, domain, 
+                                     avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC, avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
                                      *Box::new(resolve_callback), userdata);
                                      
       }
@@ -247,19 +91,19 @@ extern fn browse_callback(b: *mut AvahiServiceBrowser, interface: c_int, protoco
   }
 }
 
-extern fn client_callback(s: *mut AvahiClient, state: AvahiClientState, userdata: *mut c_void) {
+extern fn client_callback(s: *mut avahi::AvahiClient, state: avahi::AvahiClientState, userdata: *mut c_void) {
 }
 
 fn main() {
   unsafe {
     let mut error: i32 = 0;
-    let simple_poll = avahi_simple_poll_new();
+    let simple_poll = avahi::avahi_simple_poll_new();
 
-    let poll = avahi_simple_poll_get(simple_poll);
+    let poll = avahi::avahi_simple_poll_get(simple_poll);
 
-    let mut client = avahi_client_new(
+    let client = avahi::avahi_client_new(
                         poll,
-                        AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
+                        avahi::AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
                         *Box::new(client_callback),
                         ptr::null_mut(),
                         &mut error
@@ -269,15 +113,15 @@ fn main() {
     let client_ptr: *mut c_void = client as *mut c_void;
 
     let _type = std::ffi::CString::from_slice("_googlecast._tcp".as_bytes()).as_ptr();
-    let mut sb = avahi_service_browser_new(client, -1, -1, _type, 
-                                            ptr::null_mut(), AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
+    let sb = avahi::avahi_service_browser_new(client, -1, -1, _type, 
+                                            ptr::null_mut(), avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
                                             *Box::new(browse_callback), client_ptr);
 
-    avahi_simple_poll_loop(simple_poll);
+    avahi::avahi_simple_poll_loop(simple_poll);
 
-    avahi_service_browser_free(sb);
-    avahi_client_free(client);
-    avahi_simple_poll_free(simple_poll);
+    avahi::avahi_service_browser_free(sb);
+    avahi::avahi_client_free(client);
+    avahi::avahi_simple_poll_free(simple_poll);
 
   }
 
